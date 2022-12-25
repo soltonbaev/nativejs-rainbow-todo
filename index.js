@@ -1,36 +1,29 @@
-//? TASK 2
-/* DESCRIPTION:
- */
-//=============================================== TASK-2-SOLUTION-START
-// grab our HTML elements
+// render ADD TO DO card
+const addToDoBtn = document.getElementsByClassName("todo__list-btn-add")[0];
+addToDoBtn.addEventListener("click", createNewList);
 
-const addToDoBtn = document.getElementById("add-todo-btn");
-// let listContainer = [];
-
+// function to form a new list object
 function createNewList() {
-  let storage = syncFromStorage();
   const listID = Date.now(); // grabs the close button for editing modal
   const newList = {
     list: [],
     id: listID,
     title: "New List",
-    color: setRandColor(listID),
+    color: getColor("random", listID),
   };
-  storage.push(newList);
-  syncToStorage(storage);
-  renderList(listID);
+  syncToObj("list", newList, listID);
 }
-function createNewTask(listID) {
-  let storage = syncFromStorage();
-  addItemInput = document.getElementById(`item-input-${listID}`);
 
+// function to form a new task object
+function createNewTask(listID) {
+  let addItemInput = document.getElementById(`item-input-${listID}`);
   if (!addItemInput.value.trim()) {
+    // warn if input is empty
     addItemInput.placeholder = "pleasе add something";
-    addItemInput.classList.add("placeholder-warning");
-    // alert("Заполните Поле");
+    addItemInput.classList.add("todo__input-warning");
     return;
   } else {
-    addItemInput.classList.remove("placeholder-warning");
+    addItemInput.classList.remove("todo__input-warning");
     addItemInput.placeholder = "add todo item";
   }
   const newTask = {
@@ -38,21 +31,12 @@ function createNewTask(listID) {
     id: Date.now(),
     status: false,
   };
-
-  storage.forEach((listObj, index) => {
-    if (listID == listObj.id) {
-      listObj.list.push(newTask);
-      renderTasks(listID, listObj.list);
-    }
-  });
-
-  syncToStorage(storage);
-
+  syncToObj("task", newTask, listID);
   addItemInput.value = "";
 }
 
 function launchTotalRender() {
-  let listContainer = getDataFromStorage();
+  let listContainer = syncFromStorage();
   listContainer.forEach((listObj) => {
     let listID = listObj.id;
     renderList(listID);
@@ -60,45 +44,36 @@ function launchTotalRender() {
   });
 }
 
-function removeListObj(listID) {
-  let storage = syncFromStorage();
-  storage.forEach((listObj, index) => {
-    if (listID == listObj.id) {
-      storage.splice(index, 1);
-    }
-  });
-  syncToStorage(storage);
-}
-
+// function to render a given list's ui and content
 function renderList(listID) {
   // render elements of our TODO list
   const toDoWrapper = document.createElement("div");
   addToDoBtn.before(toDoWrapper);
-  toDoWrapper.style.backgroundColor = setRandColor(listID);
+  toDoWrapper.style.backgroundColor = getColor("color", listID);
   toDoWrapper.setAttribute("id", `list-wrapper-${listID}`);
   let listTitle = document.createElement("div");
-  listTitle.innerHTML = `<h2 class='todo_title'>${getTitle(listID)}</h2>`;
-  listTitle.classList.add("todo_list-title");
+  listTitle.innerHTML = `<h2 class='todo__title'>${getTitle(listID)}</h2>`;
+  listTitle.classList.add("todo__list-title");
   toDoWrapper.append(listTitle);
   const titleEdit = document.createElement("img");
   titleEdit.setAttribute("src", "./assets/edit.svg");
-  titleEdit.classList.add("todo_task-icon");
-  titleEdit.classList.add("edit-btn");
+  titleEdit.classList.add("todo__task-icon");
+  titleEdit.classList.add("todo__btn-edit");
   listTitle.append(titleEdit);
 
   // show remove icon on hover
   listTitle.addEventListener("mouseover", () => {
-    titleEdit.classList.remove("edit-btn");
-    titleEdit.classList.add("toggle");
+    titleEdit.classList.remove("todo__btn-edit");
+    titleEdit.classList.add("todo__icon_show");
   });
   listTitle.addEventListener("mouseout", () => {
-    titleEdit.classList.remove("toggle");
-    titleEdit.classList.add("edit-btn");
+    titleEdit.classList.remove("todo__icon_show");
+    titleEdit.classList.add("todo__btn-edit");
   });
 
   // edit Title in place
   const newTitle = document.createElement("input");
-  newTitle.setAttribute("class", "todo_new-title");
+  newTitle.setAttribute("class", "todo__title-new");
   listTitle.addEventListener("click", function (event) {
     event.stopPropagation();
     newTitle.value = getTitle(listID);
@@ -109,84 +84,82 @@ function renderList(listID) {
   newTitle.addEventListener("keydown", (e) => {
     if (e.key === "Enter") newTitle.blur();
   });
+  // update title when focus leaves the edit fields
   newTitle.addEventListener("focusout", () => {
     updateTitleOnEvent();
   });
   function updateTitleOnEvent() {
-    setTitle(newTitle.value, listID);
+    syncToObj("listTitle", newTitle.value, listID);
     newTitle.parentNode.replaceChild(listTitle, newTitle);
-    listTitle.innerHTML = `<h2 class='todo_title'>${getTitle(listID)}</h2>`;
+    listTitle.innerHTML = `<h2 class='todo__title'>${getTitle(listID)}</h2>`;
   }
 
-  toDoWrapper.classList.add("todo_wrapper");
+  toDoWrapper.classList.add("todo__wrapper");
   const addWrapper = document.createElement("div");
-  addWrapper.classList.add("todo_addwrapper");
+  addWrapper.classList.add("todo__input-wrapper");
   toDoWrapper.append(addWrapper);
   const addItemInput = document.createElement("input");
   addWrapper.append(addItemInput);
-  addItemInput.classList.add("todo_input");
+  addItemInput.classList.add("todo__input");
   addItemInput.setAttribute("id", `item-input-${listID}`);
   addItemInput.setAttribute("placeholder", "add todo item"); // grabs todo input
   const addItemBtn = document.createElement("div");
   addItemBtn.innerHTML = '<img src = "./assets/add.svg"></img>';
   addWrapper.append(addItemBtn);
-  addItemBtn.classList.add("todo_btn"); // grabs add task button
+  addItemBtn.classList.add("todo__btn-add"); // grabs add task button
   const itemList = document.createElement("ul");
   toDoWrapper.append(itemList);
   itemList.setAttribute("id", `ul-${listID}`);
-  itemList.classList.add("todo_list");
-  // set COLOR
+  itemList.classList.add("todo__list");
+
+  // render color circle and show color picker on hover
+  let colors = getColor("all");
   const setColor = document.createElement("div");
   toDoWrapper.append(setColor);
-  setColor.classList.add("todo_list-set-color");
+  setColor.classList.add("todo__list-set-color");
   const colorPicker = document.createElement("div");
-  colorPicker.classList.add("todo_list-color-picker");
+  colorPicker.classList.add("todo__list-color-picker");
   setColor.addEventListener("mouseover", () => {
     toDoWrapper.append(colorPicker);
   });
-  let colors = [
-    " #CC99FF",
-    "#A9D1F7",
-    "#B4F0A7",
-    "#FFFFBF",
-    " #FFDFBE",
-    "#FFB1B0",
-  ];
 
+  // render color wrapper and color circles
   colors.forEach((color) => {
     let colorItem = document.createElement("span");
-    colorItem.classList.add("todo_list-color-item");
+    colorItem.classList.add("todo__list-color-item");
     colorItem.setAttribute("id", color);
     colorPicker.append(colorItem);
     colorItem.setAttribute("style", `background-color: ${color}`);
     colorItem.addEventListener("click", () => {
       toDoWrapper.style.backgroundColor = color;
+      syncToObj("color", color, listID);
+      colorPicker.remove();
     });
   });
-  // toDoWrapper.addEventListener("mouseout", () => {
-  //   colorPicker.remove();
-  // });
-  // DELETE list
+  // render "delete list" icons
   const deleteList = document.createElement("div");
   toDoWrapper.append(deleteList);
-  deleteList.classList.add("todo_img-delete-list");
+  deleteList.classList.add("todo__list-delete-icon");
   deleteList.innerHTML = '<img src="./assets/delete.svg"></img>';
+  // when clicking recycle bin, deletes the list
   deleteList.addEventListener("click", () => {
     toDoWrapper.remove();
-    removeListObj(listID);
+    syncToObj("deleteList", "null", listID);
   });
+  // when pressing "enter", adds new task
   addItemInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       createNewTask(listID);
     }
   });
+  // when clicking a '+' sign, adds a new task
   addItemBtn.addEventListener("click", (e) => {
-    // e.target.stopPropagation();
     createNewTask(listID);
   });
 }
 
-function setRandColor(listID) {
+// function to check, get and generate random color
+function getColor(type, listID) {
   let storage = syncFromStorage();
   let colorChoice;
   let isColorFound = false;
@@ -198,54 +171,60 @@ function setRandColor(listID) {
     " #FFDFBE",
     "#FFB1B0",
   ];
-  console.log(listID);
-  storage.forEach((listObj) => {
-    console.log(listID === listObj.id);
-    if (listID === listObj.id) {
-      colorChoice = listObj.color;
-      isColorFound = true;
-    }
-  });
-  if (isColorFound) {
+  if (listID) {
+    storage.forEach((listObj) => {
+      if (listID === listObj.id) {
+        colorChoice = listObj.color;
+        isColorFound = true;
+      }
+    });
+  }
+  if (isColorFound && type === "color") {
     return colorChoice;
-  } else {
+  } else if (type === "random") {
     colorChoice = hexes[Math.floor(Math.random() * hexes.length)];
     return colorChoice;
+  } else if (type === "all") {
+    return hexes;
   }
 }
 
+// render a given task
 const renderTasks = (listID, taskArr) => {
-  itemList = document.getElementById(`ul-${listID}`);
+  // get the ul containing the list of tasks
+  let itemList = document.getElementById(`ul-${listID}`);
+
+  // reset the contents of list ul each time we call render
   itemList.innerHTML = "";
+
+  // go through each task object inside a given list object
   taskArr.forEach((task) => {
     // create li for each task
     let li = document.createElement("li");
-    li.classList.add("todo_task");
+    li.classList.add("todo__task");
     liSpan = document.createElement("span");
-    liSpan.classList.add("todo_li-span");
+    liSpan.classList.add("todo__task-wrapper");
     li.append(liSpan);
     liSpan.innerText = task.task;
     liSpan.setAttribute("id", `li-span${task.id}`);
+
+    // create checkbox for each task
     let checkbox = document.createElement("input");
     checkbox.setAttribute("type", "checkbox");
     li.prepend(checkbox);
     itemList.append(li);
-    // create delete button for each task
 
     // create edit button for each task
     const btnEdit = document.createElement("img");
     btnEdit.setAttribute("src", "./assets/edit.svg");
-    btnEdit.classList.add("todo_task-icon");
-    // btnEdit.innerText = "Edit";
-    btnEdit.classList.add("edit-btn");
+    btnEdit.classList.add("todo__task-icon");
+    btnEdit.classList.add("todo__btn-edit");
     liSpan.after(btnEdit);
-    // liSpan.addEventListener("click", function (event) {
-    //   event.stopPropagation();
-    //   editTask(task.id);
-    // });
 
+    // create input for adding tasks
+    let currSpan;
     const editTask = document.createElement("input");
-    editTask.setAttribute("class", "todo_new-task");
+    editTask.setAttribute("class", "todo__task-new");
     liSpan.addEventListener("click", function (event) {
       event.stopPropagation();
       editTask.value = task.task;
@@ -257,220 +236,132 @@ const renderTasks = (listID, taskArr) => {
     editTask.addEventListener("keydown", (e) => {
       if (e.key === "Enter") editTask.blur();
     });
+
+    // save task when the focus leaves the editing field
     editTask.addEventListener("focusout", () => editTaskOnEvent());
 
     function editTaskOnEvent(e) {
-      editToDoTask(listID, task.id, editTask.value);
+      syncToObj("edit", editTask.value, listID, task.id);
       editTask.parentNode.replaceChild(currSpan, editTask);
       currSpan.innerHTML = editTask.value;
     }
 
     // show EDIT icon on task hover
     liSpan.addEventListener("mouseover", () => {
-      btnEdit.classList.remove("edit-btn");
-      btnEdit.classList.add("toggle");
+      btnEdit.classList.remove("todo__btn-edit");
+      btnEdit.classList.add("todo__icon_show");
     });
     liSpan.addEventListener("mouseout", () => {
-      btnEdit.classList.remove("toggle");
-      btnEdit.classList.add("edit-btn");
+      btnEdit.classList.remove("todo__icon_show");
+      btnEdit.classList.add("todo__btn-edit");
     });
 
+    // render 'delete' icon and functionality
     const btnDelete = document.createElement("img");
-    // btnDelete.innerText = "Delete";
     btnDelete.setAttribute("src", "./assets/remove.svg");
-    btnDelete.classList.add("todo_task-icon");
+    btnDelete.classList.add("todo__task-icon");
     btnDelete.addEventListener("click", function (event) {
       event.stopPropagation();
-      console.log(task.id);
-      deleteTask(listID, task.id);
+      syncToObj("delete", "null", listID, task.id);
     });
     li.append(btnDelete);
+
     // mark as done
     if (task.status) {
       li.classList.add("completed");
       checkbox.checked = true;
     }
     checkbox.addEventListener("click", function () {
-      changeStatus(listID, task.id);
+      syncToObj("status", "null", listID, task.id);
     });
   });
 };
-function renderModal() {
-  const modal = document.createElement("div");
-  toDoWrapper.append(modal);
-  modal.classList.add("main-modal"); // grabs the editing modal
-  const editItemInput = document.createElement("input");
-  modal.append(editItemInput);
-  editItemInput.classList.add("inp-edit"); //grabs the input for editing modal
-  const saveItemBtn = document.createElement("button");
-  modal.append(saveItemBtn);
-  saveItemBtn.classList.add("btn-save"); //grabs the save button for editing modal
-  const closeModalBtn = document.createElement("button");
-  modal.append(closeModalBtn);
-  closeModalBtn.classList.add("btn-closer");
-}
 
-function setTitle(newTitle, listID) {
-  storage = syncFromStorage();
-  storage.forEach((listObj) => {
-    if (listID == listObj.id) {
-      listObj.title = newTitle;
-      return;
-    }
-  });
+function syncToObj(type, data, listID, taskID) {
+  let storage = syncFromStorage();
+
+  // add new list to our object
+  if (type === "list") {
+    storage.push(data);
+    syncToStorage(storage);
+    renderList(listID);
+    return;
+  } else if (listID) {
+    // if list ID is present, go through list objects
+    storage.forEach((listObj, index) => {
+      // add new task
+      if (listID === listObj.id && type === "task") {
+        listObj.list.push(data);
+        renderTasks(listID, listObj.list);
+        return;
+      } else if (listID === listObj.id && type === "color") {
+        // set new color
+        listObj.color = data;
+        renderTasks(listID, listObj.list);
+        return;
+      } else if (listID === listObj.id && type === "listTitle") {
+        // set new list title
+        listObj.title = data;
+        renderTasks(listID, listObj.list);
+        return;
+      } else if (type === "deleteList" && listID == listObj.id) {
+        storage.splice(index, 1);
+        return;
+      } else if (taskID) {
+        // if task ID is present, go through task objects
+        listObj.list.forEach((taskObj, index) => {
+          // delete task from a list
+          if (type === "delete" && data === "null" && taskObj.id === taskID) {
+            listObj.list.splice(index, 1);
+            renderTasks(listID, listObj.list);
+            return;
+          } else if (type === "edit" && taskObj.id == taskID) {
+            // save the edited task in the list
+            taskObj.task = data;
+            renderTasks(listID, listObj.list);
+            return;
+          } else if (
+            type === "status" &&
+            data === "null" &&
+            taskObj.id === taskID
+          ) {
+            // flip 'completed' status
+            taskObj.status = !taskObj.status;
+            renderTasks(listID, listObj.list);
+            return;
+          }
+        });
+      }
+    });
+  }
   syncToStorage(storage);
 }
 
+// gets the title of a list
 function getTitle(listID) {
   storage = syncFromStorage();
   let result;
   storage.forEach((listObj) => {
     if (listID == listObj.id) {
-      console.log(listObj);
-      console.log(listObj.title);
       result = listObj.title;
     }
   });
   return result;
 }
 
-//? "CREATE" FUNCTIONALITY OF OUR CRUD IMPLEMENTATION
-
-const setItemToStorage = (storage) => {
-  // let findCurrTasks = storage.find((item) => {
-  //   if (item.id === listID) return item;
-  // });
-  findCurrTasks.list.push(newTask);
-  syncToStorage(storage);
-};
-
-//? "READ" FUNCTIONALITY OF OUR CRUDE IMPLEMENTATION
-
-// GET DATA FROM STORAGE
-
-const getDataFromStorage = () => {
-  let listContainer = syncFromStorage();
-  return listContainer;
-};
-
-//? "UPDATE" FUNCTIONALITY OF OUR CRUD IMPLEMENTATION
-const changeStatus = (listID, taskID) => {
-  const storage = getDataFromStorage();
-  storage.forEach((listObj) => {
-    if (listID == listObj.id) {
-      listObj.list.forEach((taskObj, index) => {
-        if (taskObj.id == taskID) {
-          taskObj.status = !taskObj.status;
-        }
-        renderTasks(listID, listObj.list);
-      });
-    }
-  });
-
-  syncToStorage(storage);
-
-  // const tasksData = getDataFromStorage();
-  // const newTasksData = tasksData.map((item) => {
-  //   if (item.id === id) {
-  //     item.status = !item.status;
-  //   }
-  //   return item;
-  // });
-  // localStorage.setItem(taskListID, JSON.stringify(newTasksData));
-  // renderTasks();
-};
-
-const editToDoTask = (listID, taskID, task) => {
-  const storage = getDataFromStorage();
-  storage.forEach((listObj) => {
-    if (listID == listObj.id) {
-      listObj.list.forEach((taskObj) => {
-        if (taskObj.id == taskID) {
-          taskObj.task = task;
-        }
-        renderTasks(listID, listObj.list);
-      });
-    }
-  });
-
-  syncToStorage(storage);
-  // const tasksData = getDataFromStorage();
-  // const itemToEdit = tasksData.find((item) => {
-  //   return item.id === id;
-  // });
-  // console.log(itemToEdit);
-  // modal.style.display = "block";
-  // editItemInput.value = itemToEdit.task;
-  // saveItemBtn.addEventListener("click", () => {
-  //   const value = editItemInput.value;
-  //   console.log(value);
-  //   itemToEdit.task = value;
-  //   modal.style.display = "none";
-  //   const newTasksData = tasksData.map((item) => {
-  //     if (item.id === id) {
-  //       return itemToEdit;
-  //     }
-  //     return item;
-  //   });
-  //   localStorage.setItem(taskListID, JSON.stringify(newTasksData));
-  //   renderTasks();
-  // });
-};
-
-//? DELETE FUNCTIONALITY OF OUR CRUD IMPLEMENTATION
-
-const deleteTask = (listID, taskID) => {
-  const storage = getDataFromStorage();
-  storage.forEach((listObj) => {
-    if (listID == listObj.id) {
-      listObj.list.forEach((taskObj, index) => {
-        if (taskObj.id == taskID) {
-          console.log("task id", taskObj.id);
-          listObj.list.splice(index, 1);
-        }
-        renderTasks(listID, listObj.list);
-      });
-    }
-  });
-
-  syncToStorage(storage);
-  // const taskObj = tasksData.filter((item) => {
-  //   return item.id !== listID;
-  // });
-
-  // localStorage.setItem(taskListID, JSON.stringify(newTasksData));
-  // renderTasks();
-};
-
-//=============================================== HELPER FUNCTIONS FOR EDITING A TODO ITEM
-
+// write our storage item to local storage
 function syncToStorage(storage) {
   localStorage.setItem("todo-list", JSON.stringify(storage));
 }
+
+// get storage item from local storage and set empty array if it's empty
 function syncFromStorage() {
   let storage = JSON.parse(localStorage.getItem("todo-list"));
   if (!storage) {
-    console.log("Setting default storage if no storage is present");
     localStorage.setItem("todo-list", JSON.stringify([]));
     storage = [];
   }
   return storage;
 }
 
-// renderTasks();
-
-// createNewList();
-function launchListeners() {
-  addToDoBtn.addEventListener("click", createNewList);
-  // set event listener on the button that adds a todo item
-  // addItemBtn.addEventListener("click", createNewTask);
-  // closeModalBtn.addEventListener("click", function () {
-  //   modal.style.display = "none";
-  //   if (!editItemInput.value.trim()) {
-  //     alert("Заполните Поле");
-  //     return;
-  //   }
-  // });
-}
-launchListeners();
 launchTotalRender();
